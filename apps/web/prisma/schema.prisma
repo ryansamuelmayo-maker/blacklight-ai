@@ -1,0 +1,662 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum SubscriptionTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+enum LeadType {
+  BUYER
+  SELLER
+  BOTH
+}
+
+enum LeadSource {
+  WEBSITE_CHAT
+  SMS_INBOUND
+  EMAIL_ADF
+  PHONE
+  WALKIN
+  CARS_COM
+  CARGURUS
+  AUTOTRADER
+  FACEBOOK
+  SERVICE_DRIVE
+  EQUITY_MINE
+  OTHER
+}
+
+enum Channel {
+  SMS
+  EMAIL
+  WEBCHAT
+  VOICE
+  MANUAL
+}
+
+enum LeadStatus {
+  NEW
+  AI_ENGAGED
+  HOT
+  APPOINTMENT_SET
+  SHOWED
+  CLOSED_WON
+  CLOSED_LOST
+  STALE
+}
+
+enum AgentType {
+  NOVA
+  AXEL
+  HUMAN
+  UNASSIGNED
+}
+
+enum VehicleCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  UNKNOWN
+}
+
+enum AppraisalSource {
+  KBB_ICO
+  ACCUTRADE
+  BLACK_BOOK
+  VAUTO
+  CARMAX
+  CARVANA
+  MANUAL
+  OTHER
+}
+
+enum OfferType {
+  INSTANT_OFFER
+  WHOLESALE
+  RETAIL
+  TRADE_IN
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RetrievalMethod {
+  ADF_PUSH
+  CRM_POLL
+  WEBHOOK
+  MANUAL_ENTRY
+  API_DIRECT
+}
+
+enum ConversationStatus {
+  ACTIVE
+  PAUSED
+  ESCALATED
+  CLOSED
+}
+
+enum MessageRole {
+  AI
+  CUSTOMER
+  SYSTEM
+  HUMAN_AGENT
+}
+
+enum NegotiationStatus {
+  CONFIGURING
+  ACTIVE
+  PENDING_APPROVAL
+  CLOSED_WON
+  CLOSED_LOST
+  EXPIRED
+  ESCALATED
+}
+
+enum AnchorSource {
+  KBB_ICO
+  ACCUTRADE
+  BLACK_BOOK
+  VAUTO
+  BLENDED
+  MANUAL
+}
+
+enum IncrementCurve {
+  FLAT
+  DECREASING
+  FRONT_LOADED
+  BACK_LOADED
+}
+
+enum ClosedReason {
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  ESCALATED_TO_MANAGER
+  COMPETITOR_WON
+}
+
+enum CustomerSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  AGGRESSIVE
+}
+
+enum VehicleCategory {
+  TRUCK_SUV
+  SEDAN
+  SPORTS
+  LUXURY
+  EV
+  UNIVERSAL
+}
+
+enum ApprovalType {
+  CEILING_OVERRIDE
+  COMPETITOR_MATCH
+  FINAL_BUMP_EXCEED
+  MANUAL_REVIEW
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  COUNTER_OFFERED
+  EXPIRED
+}
+
+enum AdfProvider {
+  ACCUTRADE
+  KBB_ICO
+  BLACK_BOOK
+  VAUTO
+  OTHER
+}
+
+enum AdfEndpointType {
+  EMAIL
+  API_URL
+  WEBHOOK
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILURE
+  PENDING
+}
+
+enum AdfDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum AdfTransactionStatus {
+  SENT
+  DELIVERED
+  FAILED
+  RESPONSE_RECEIVED
+  TIMEOUT
+}
+
+enum DealType {
+  ACQUISITION
+  SALE
+}
+
+enum ExportType {
+  FULL
+  LEADS
+  CONVERSATIONS
+  NEGOTIATIONS
+  DEALS
+  ANALYTICS
+}
+
+enum ExportFormat {
+  CSV
+  JSON
+  PDF_REPORT
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model Dealership {
+  id               String           @id @default(uuid())
+  name             String
+  slug             String           @unique
+  address          String?
+  phone            String?
+  timezone         String           @default("America/New_York")
+  subscriptionTier SubscriptionTier @default(STARTER)
+  settings         Json             @default("{}")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  locations     Location[]
+  users         User[]
+  leads         Lead[]
+  conversations Conversation[]
+  negotiations  Negotiation[]
+  vehicles      Vehicle[]
+  appraisals    Appraisal[]
+  adfEndpoints  AdfEndpoint[]
+  adfTransactions AdfTransaction[]
+  negotiationProfiles NegotiationProfile[]
+  dealRecords   DealRecord[]
+  dailyMetrics  DailyMetrics[]
+  dataExports   DataExport[]
+}
+
+model Location {
+  id           String   @id @default(uuid())
+  dealershipId String
+  name         String
+  address      String?
+  phone        String?
+  isActive     Boolean  @default(true)
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  dealership   Dealership    @relation(fields: [dealershipId], references: [id])
+  leads        Lead[]
+  negotiations Negotiation[]
+  dealRecords  DealRecord[]
+  dailyMetrics DailyMetrics[]
+}
+
+model User {
+  id                      String   @id @default(uuid())
+  dealershipId            String
+  email                   String   @unique
+  name                    String
+  passwordHash            String
+  role                    UserRole @default(AGENT)
+  phone                   String?
+  avatarUrl               String?
+  isActive                Boolean  @default(true)
+  notificationPreferences Json     @default("{}")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  deletedAt               DateTime?
+
+  dealership        Dealership          @relation(fields: [dealershipId], references: [id])
+  approvalActions   NegotiationApproval[] @relation("ApprovalResponder")
+  assignedLeads     Lead[]              @relation("AssignedUser")
+  humanTakeovers    Conversation[]      @relation("HumanTakeover")
+  dataExports       DataExport[]
+}
+
+model Lead {
+  id             String     @id @default(uuid())
+  dealershipId   String
+  locationId     String?
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  type           LeadType   @default(BUYER)
+  source         LeadSource @default(OTHER)
+  sourceDetail   String?
+  channel        Channel    @default(MANUAL)
+  status         LeadStatus @default(NEW)
+  intentScore    Int?
+  intentSignals  Json       @default("[]")
+  assignedAgent  AgentType  @default(UNASSIGNED)
+  assignedUserId String?
+  estimatedGross Int?
+  adfPayload     String?    @db.Text
+  metadata       Json       @default("{}")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  dealership    Dealership     @relation(fields: [dealershipId], references: [id])
+  location      Location?      @relation(fields: [locationId], references: [id])
+  assignedUser  User?          @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  conversations Conversation[]
+  vehicles      Vehicle[]
+  negotiations  Negotiation[]
+  dealRecords   DealRecord[]
+  adfTransactions AdfTransaction[]
+}
+
+model Vehicle {
+  id           String           @id @default(uuid())
+  leadId       String?
+  dealershipId String
+  vin          String?
+  year         Int
+  make         String
+  model        String
+  trim         String?
+  mileage      Int?
+  condition    VehicleCondition @default(UNKNOWN)
+  color        String?
+  bodyStyle    String?
+  customerAskingPrice Int?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
+
+  lead         Lead?         @relation(fields: [leadId], references: [id])
+  dealership   Dealership    @relation(fields: [dealershipId], references: [id])
+  appraisals   Appraisal[]
+  negotiations Negotiation[]
+  dealRecords  DealRecord[]
+  adfTransactions AdfTransaction[]
+}
+
+model Appraisal {
+  id              String          @id @default(uuid())
+  vehicleId       String
+  dealershipId    String
+  source          AppraisalSource
+  offerAmount     Int
+  offerType       OfferType       @default(INSTANT_OFFER)
+  confidence      Confidence      @default(MEDIUM)
+  expiresAt       DateTime?
+  rawData         Json            @default("{}")
+  retrievalMethod RetrievalMethod @default(MANUAL_ENTRY)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  vehicle    Vehicle    @relation(fields: [vehicleId], references: [id])
+  dealership Dealership @relation(fields: [dealershipId], references: [id])
+}
+
+model Conversation {
+  id                   String             @id @default(uuid())
+  leadId               String
+  dealershipId         String
+  agent                AgentType          @default(NOVA)
+  channel              Channel            @default(SMS)
+  status               ConversationStatus @default(ACTIVE)
+  humanTakeover        Boolean            @default(false)
+  humanTakeoverAt      DateTime?
+  humanTakeoverUserId  String?
+  summary              String?            @db.Text
+  metadata             Json               @default("{}")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+
+  lead                 Lead       @relation(fields: [leadId], references: [id])
+  dealership           Dealership @relation(fields: [dealershipId], references: [id])
+  humanTakeoverUser    User?      @relation("HumanTakeover", fields: [humanTakeoverUserId], references: [id])
+  messages             Message[]
+}
+
+model Message {
+  id                String      @id @default(uuid())
+  conversationId    String
+  role              MessageRole
+  content           String      @db.Text
+  channel           Channel     @default(SMS)
+  externalMessageId String?
+  aiModel           String?
+  aiReasoningTrace  Json?
+  metadata          Json        @default("{}")
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model Negotiation {
+  id               String            @id @default(uuid())
+  leadId           String
+  vehicleId        String
+  dealershipId     String
+  locationId       String?
+  status           NegotiationStatus @default(CONFIGURING)
+  strategyProfileId String
+
+  anchorSource        AnchorSource   @default(MANUAL)
+  anchorAmount        Int            @default(0)
+  dealerCeiling       Int            @default(0)
+  openingOfferPercent Int            @default(85)
+  perRoundIncrement   Int            @default(0)
+  incrementCurve      IncrementCurve @default(FLAT)
+  maxRounds           Int            @default(5)
+  finalBump           Int            @default(0)
+  reconBuffer         Int            @default(0)
+  demandBonus         Int            @default(0)
+  mileageAdjustment   Int            @default(0)
+  categoryAdjustment  Int            @default(0)
+
+  currentRound           Int     @default(0)
+  currentOffer           Int     @default(0)
+  customerCounterOffer   Int?
+  competitorMentioned    String?
+  competitorOfferAmount  Int?
+  finalOffer             Int?
+  closedAt               DateTime?
+  closedReason           ClosedReason?
+  grossProfit            Int?
+  guardianSavings        Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  lead            Lead               @relation(fields: [leadId], references: [id])
+  vehicle         Vehicle            @relation(fields: [vehicleId], references: [id])
+  dealership      Dealership         @relation(fields: [dealershipId], references: [id])
+  location        Location?          @relation(fields: [locationId], references: [id])
+  strategyProfile NegotiationProfile @relation(fields: [strategyProfileId], references: [id])
+  approvals       NegotiationApproval[]
+  rounds          NegotiationRound[]
+  dealRecords     DealRecord[]
+}
+
+model NegotiationRound {
+  id               String            @id @default(uuid())
+  negotiationId    String
+  roundNumber      Int
+  offerAmount      Int
+  incrementApplied Int               @default(0)
+  percentOfCeiling Int               @default(0)
+  strategyUsed     String?
+  customerResponse String?           @db.Text
+  customerSentiment CustomerSentiment?
+  competitorDetected Boolean          @default(false)
+  aiReasoningTrace Json              @default("{}")
+  timestamp        DateTime          @default(now())
+
+  negotiation Negotiation @relation(fields: [negotiationId], references: [id])
+}
+
+model NegotiationProfile {
+  id                String          @id @default(uuid())
+  dealershipId      String
+  name              String
+  vehicleCategory   VehicleCategory @default(UNIVERSAL)
+  isDefault         Boolean         @default(false)
+  defaultOpeningPercent Int         @default(85)
+  defaultIncrement     Int          @default(25000)
+  defaultCurve         IncrementCurve @default(DECREASING)
+  defaultMaxRounds     Int          @default(5)
+  defaultFinalBump     Int          @default(50000)
+  defaultReconBuffer   Int          @default(0)
+  defaultDemandBonus   Int          @default(0)
+  defaultCeilingAdjustment Int      @default(0)
+  competitorResponseRules Json      @default("[]")
+  escalationRules        Json       @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  dealership   Dealership    @relation(fields: [dealershipId], references: [id])
+  negotiations Negotiation[]
+}
+
+model NegotiationApproval {
+  id                 String         @id @default(uuid())
+  negotiationId      String
+  requestedByAgent   AgentType      @default(AXEL)
+  type               ApprovalType
+  requestedAmount    Int
+  currentCeiling     Int
+  reason             String         @db.Text
+  status             ApprovalStatus @default(PENDING)
+  respondedByUserId  String?
+  respondedAt        DateTime?
+  counterOfferAmount Int?
+  notes              String?        @db.Text
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  negotiation    Negotiation @relation(fields: [negotiationId], references: [id])
+  respondedByUser User?      @relation("ApprovalResponder", fields: [respondedByUserId], references: [id])
+}
+
+model AdfEndpoint {
+  id            String         @id @default(uuid())
+  dealershipId  String
+  provider      AdfProvider
+  endpointType  AdfEndpointType
+  endpointValue String
+  weight        Int            @default(100)
+  isActive      Boolean        @default(true)
+  credentials   Json?
+  lastSyncAt    DateTime?
+  lastSyncStatus SyncStatus?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  dealership   Dealership       @relation(fields: [dealershipId], references: [id])
+  transactions AdfTransaction[]
+}
+
+model AdfTransaction {
+  id               String               @id @default(uuid())
+  dealershipId     String
+  leadId           String?
+  vehicleId        String?
+  endpointId       String
+  direction        AdfDirection
+  adfXml           String               @db.Text
+  status           AdfTransactionStatus @default(SENT)
+  sentAt           DateTime             @default(now())
+  responseReceivedAt DateTime?
+  responseData     Json?
+  errorMessage     String?              @db.Text
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  dealership Dealership  @relation(fields: [dealershipId], references: [id])
+  lead       Lead?       @relation(fields: [leadId], references: [id])
+  vehicle    Vehicle?    @relation(fields: [vehicleId], references: [id])
+  endpoint   AdfEndpoint @relation(fields: [endpointId], references: [id])
+}
+
+model DealRecord {
+  id                        String    @id @default(uuid())
+  dealershipId              String
+  locationId                String?
+  leadId                    String
+  negotiationId             String?
+  vehicleId                 String
+  type                      DealType
+  agent                     AgentType
+  grossProfit               Int       @default(0)
+  guardianSavings           Int       @default(0)
+  responseTimeSeconds       Int       @default(0)
+  totalConversationMessages Int       @default(0)
+  totalRounds               Int?
+  customerSatisfactionScore Int?
+  closedAt                  DateTime  @default(now())
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  dealership  Dealership   @relation(fields: [dealershipId], references: [id])
+  location    Location?    @relation(fields: [locationId], references: [id])
+  lead        Lead         @relation(fields: [leadId], references: [id])
+  negotiation Negotiation? @relation(fields: [negotiationId], references: [id])
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id])
+}
+
+model DailyMetrics {
+  id                    String   @id @default(uuid())
+  dealershipId          String
+  locationId            String?
+  date                  DateTime @db.Date
+  totalLeadsIn          Int      @default(0)
+  buyerLeads            Int      @default(0)
+  sellerLeads           Int      @default(0)
+  aiEngaged             Int      @default(0)
+  appointmentsSet       Int      @default(0)
+  showed                Int      @default(0)
+  closedWon             Int      @default(0)
+  closedLost            Int      @default(0)
+  totalGrossProfit      Int      @default(0)
+  avgGrossPerDeal       Int      @default(0)
+  avgResponseTimeSeconds Int     @default(0)
+  avgIntentScore        Int      @default(0)
+  guardianSavingsTotal  Int      @default(0)
+  novaLeadsHandled      Int      @default(0)
+  axelNegotiationsRun   Int      @default(0)
+  humanEscalations      Int      @default(0)
+  approvalRequests      Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  dealership Dealership @relation(fields: [dealershipId], references: [id])
+  location   Location?  @relation(fields: [locationId], references: [id])
+
+  @@unique([dealershipId, locationId, date])
+}
+
+model DataExport {
+  id              String       @id @default(uuid())
+  dealershipId    String
+  requestedByUserId String
+  exportType      ExportType
+  format          ExportFormat @default(CSV)
+  status          ExportStatus @default(QUEUED)
+  fileUrl         String?
+  fileSize        Int?
+  recordCount     Int?
+  requestedAt     DateTime     @default(now())
+  completedAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  dealership    Dealership @relation(fields: [dealershipId], references: [id])
+  requestedByUser User     @relation(fields: [requestedByUserId], references: [id])
+}
